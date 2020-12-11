@@ -9,6 +9,7 @@ from mcastServer import McastServer
 
 db_client =  MongoClient("mongodb://localhost:27017/TtsServer")["TtsServer"]
 db_zones = db_client['Zones']
+db_devices = db_client['DeviceId']
 
 MCAST_GRP = "230.128.128.128"
 MCAST_PORT = 12345
@@ -32,6 +33,10 @@ class Main(QMainWindow, Ui_MainWindow):
         
         self.setupUi(self)
         self.show()
+
+        self.zone = list(db_zones.find())
+        print(self.zone)
+        
         self.players = []
         self.playersStatus = []
         self.waitList = []
@@ -45,13 +50,18 @@ class Main(QMainWindow, Ui_MainWindow):
             self.playersPlay[i].connect(self.players[i].play)
             self.playersStop[i].connect(self.players[i].stop)
 
-            self.players[i].devicesList.connect(self.playerDevicesList)
+            self.players[i].devicesList.connect(self.getDevices)
             self.players[i].playersStatus.connect(self.playerStatusChange)
+            self.players[i].currentDevice.connect(self.setDevices)
 
             self.cbb_Player_Device_Sel_[i].currentIndexChanged.connect(self.playersSetDevices[i])
 
             self.playersGetDevices[i].emit()
-        
+
+        # self.currentDevices = list(db_devices.find())
+        # for i in range(8):
+        #     # self.playersSetDevices[i].emit(self.currentDevices[i]["value"])
+        #     self.cbb_Player_Device_Sel_[i].setCurrentIndex(self.currentDevices[i]["value"])
 
         self.McastServer = McastServer(MCAST_GRP, MCAST_PORT)
         self.McastServer.mcastRecv.connect(self.parcer)
@@ -62,13 +72,31 @@ class Main(QMainWindow, Ui_MainWindow):
         self.playerLoader.play.connect(self.play)
         self.playerLoader.start()
 
-        # self.playersSetDevices[0].emit(3)
-    
+        # self.playersSetDevices[0].emit(3)    
+    @Slot(int, int)
+    def setDevices(self, id, value):
+        db_devices.update_one(
+            { "_id": id },
+            { "$set": {
+                "value": value
+                }
+            }, upsert=True
+        )
+
     @Slot(int, list)
-    def playerDevicesList(self, id, listItems):
+    def getDevices(self, id, listItems):
+        deviceList = []
         for i in range(len(listItems)):
             self.cbb_Player_Device_Sel_[id].addItem(listItems[i])
-
+            deviceList.append(listItems[i])
+        db_devices.update_one(
+            { "_id": id },
+            { "$set": {
+                "list": deviceList
+                }
+            }, upsert=True
+        )
+        
     @Slot(int, bool, bool)
     def playerStatusChange(self, id, state, endReached):
         self.playersStatus[id] = state
@@ -92,7 +120,10 @@ class Main(QMainWindow, Ui_MainWindow):
 
     @Slot(bytes)
     def parcer(self, recv):
-        print(json.loads(recv))
+        recvDict = json.loads(recv)
+        if recvDict['func'] == 'play':
+            self.playLoader.emit(recvDict['file'])
+
 
 class playerLoader(QThread):
     play = Signal(str)

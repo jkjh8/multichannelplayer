@@ -3,6 +3,7 @@ from PySide2.QtCore import QThread, Slot, Signal
 
 class player(QThread):
     devicesList = Signal(int, list)
+    currentDevice = Signal(int, int)
     playersStatus = Signal(int, bool, bool)
 
     def __init__(self, playerId, parent = None):
@@ -50,8 +51,12 @@ class player(QThread):
     @Slot(int)
     def setAudioDevices(self, deviceId):
         self.player.audio_output_device_set(None, self.devices[deviceId])
-        print(self.playerId)
-        print(self.player.audio_output_device_get())
+        current = self.player.audio_output_device_get()
+        if current:
+            currentdeviceid = self.devices.index(current.encode('utf-8'))
+        else:
+            currentdeviceid = 0
+        self.currentDevice.emit(self.playerId, currentdeviceid)
 
     def endReached(self, event):
         print('endReached')
