@@ -1,0 +1,4 @@
+pymongo==3.11.2
+PySide2==5.15.2
+python-vlc==3.0.11115
+shiboken2==5.15.2
