@@ -136,7 +136,7 @@ class playerLoader(QThread):
             if self.playlist.qsize():
                 file = self.playlist.get()
                 self.play.emit(file)
-                time.sleep(1)
+                # time.sleep(1)
 
     @Slot(str, list)
     def addQueue(self, playFile):
